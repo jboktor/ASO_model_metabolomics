@@ -1,5 +1,10 @@
 # Packages required
 
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+# 
+# BiocManager::install("BiocGenerics") 
+
 library(eulerr)
 library(dplyr)
 library(tidyverse)
@@ -20,5 +25,9 @@ library(tm)
 library(proustr)
 library(RColorBrewer)
 library(VennDiagram)
-
 library(UpSetR)
+library(ggsci)
+library(psych)
+library(svglite)
+
+# library(doParallel)

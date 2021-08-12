@@ -1,9 +1,9 @@
 
 source("src/load_packages.R")
-
+source("src/functions.R")
 
 df.interact.A <-
-  read_excel("files/caltech.PD mice.011920.xlsx", 
+  read_excel("files/caltech.PD mice.040820.xlsx", 
              sheet = "interaction.regcoef") %>% 
   janitor::clean_names() %>%
   dplyr::filter(imputation == "imputed") 
@@ -25,6 +25,7 @@ for (toi in unique(df.interact.A$tissue)){
       )
     )
   plot <- interact_plot(df.interact) 
+  print(plot)
   ggsave(paste0("data/Interaction_plots/Interaction_plot_", toi, ".png"), 
          width = 6, height = 6)
 }

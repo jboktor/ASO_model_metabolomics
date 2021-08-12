@@ -35,7 +35,7 @@ colormash <- c(
   '#1b9e77','#d95f02','#7570b3','#e7298a',
   '#66a61e','#e6ab02','#a6761d','#666666')
 
-tisse_order <-
+tissue_order <-
   c("Plasma",
     "Brainstem",
     "Cortex",
@@ -135,6 +135,18 @@ interact_plot <- function(df.interact){
     return(interact.plot)
 }
 
+
 #--------------------------------------------------------------------------------
 
+my_clean_theme <- function() {
+  th <- ggplot2::theme_bw() +
+    theme(
+      panel.grid = element_blank(),
+      strip.background = element_rect(fill = "white"),
+      plot.title = element_text(hjust = 0.5),
+      plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm")
+    )
+  return(th)
+}
+#--------------------------------------------------------------------------------
 

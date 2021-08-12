@@ -5,7 +5,7 @@ source("src/functions.R")
 # DF prep
 df.interact.A <-
   read_excel("files/caltech.PD mice.040820.xlsx", 
-             sheet = "Tabelle1") %>% 
+             sheet = "interaction.regcoef") %>% 
   janitor::clean_names() %>%
   dplyr::filter(imputation == "imputed") 
 
@@ -19,13 +19,38 @@ df.barplot <-
     tissue,
     levels = tisse_order
   ))
+df.barplot.sig <- 
+  df.interact.A %>%
+  # PVALUE FILTER
+  dplyr::filter(pr_t < 0.05) %>%
+  group_by(tissue, variable, analyte_class) %>%
+  dplyr::summarise(mean = mean(estimate), n = n()) %>%
+  ungroup() %>%
+  dplyr::mutate(analyte_class = as.factor(analyte_class)) %>% 
+  dplyr::mutate(tissue = factor(
+    tissue,
+    levels = c(
+      "Plasma",
+      "Brainstem",
+      "Cortex",
+      "Nigra",
+      "Striatum",
+      "Duodenum",
+      "Duodenum Content",
+      "Cecum",
+      "Colon",
+      "Colon Content"
+    )
+  ))
 
 # Analyte Class color palette
 analyte_class_colors <- 
-  colorRampPalette(colormash)(length(unique(
+  colorRampPalette(colormash)(length(base::unique(
     df.barplot.sig$analyte_class)))
 names(analyte_class_colors) <- unique(
   df.barplot.sig$analyte_class)
+
+save(analyte_class_colors, file = "files/analyte_class_colors.RData")
 
 
 #-------------------------------------------------------------------------------
@@ -85,29 +110,6 @@ ggsave(
 #-------------------------------------------------------------------------------
 #                     Plotting Significant Estimates
 #-------------------------------------------------------------------------------
-df.barplot.sig <- 
-  df.interact.A %>%
-  # PVALUE FILTER
-  dplyr::filter(pr_t < 0.05) %>%
-  group_by(tissue, variable, analyte_class) %>%
-  dplyr::summarise(mean = mean(estimate), n = n()) %>%
-  ungroup() %>%
-  dplyr::mutate(analyte_class = as.factor(analyte_class)) %>% 
-  dplyr::mutate(tissue = factor(
-    tissue,
-    levels = c(
-      "Plasma",
-      "Brainstem",
-      "Cortex",
-      "Nigra",
-      "Striatum",
-      "Duodenum",
-      "Duodenum Content",
-      "Cecum",
-      "Colon",
-      "Colon Content"
-    )
-  ))
 
 estimate_sig <- 
   df.barplot.sig %>%
