@@ -1,0 +1,566 @@
+---
+title: "Genotype (ASO/WT) x Microbiota (GF/SPF) Body Weight Correlation Analysis"
+editor: visual
+author: "Joe Boktor"
+date: '2023-01-21'
+format: 
+  html:
+    page-layout: full
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    self-contained: true
+    code-fold: true
+    code-tools: true
+    fig-align: center
+---
+
+In our linear regression analysis between metabolite concentrations and Microbiota and Genotype covariates, we find many associations with fatty acids and triglycerides. Considering the notable weight differences between WT and ASO mice, it may be important to consider body weight as a parameter in our regression analysis.
+
+The following analysis we will attempt to answer the following questions:
+
+1.  Are body-weight correlations driven by group differences in body-weight?
+2.  What is the optimal representation of body-weight data in our regression models to capture strong body-weight x metabolite associations while also reducing degrees of freedom and maintaining power for our analysis?
+    -   One common option is to z-score the continuous data and discretize the data into bins.
+
+#### Analysis Setup
+
+Loading packages.
+
+```{r}
+#| warning: false
+wkdir <- "/Users/josephboktor/Documents/analyses/ASO_model_analyses/ASO_model_metabolomics"
+library(tidyverse)
+library(magrittr)
+library(glue)
+library(ppcor)
+library(plotly)
+library(ggsci)
+library(patchwork)
+library(readxl)
+```
+
+Load in data.
+
+```{r}
+#| warning: false
+#| 
+# load in table 
+df_met <- read.csv(
+  glue("{wkdir}/files/caltechdata.csv"), header = F)
+
+# protect metabolite names
+df_met[1, 10:643] <- paste0("metabolite_", df_met[1, 10:643] )
+#drop first row
+names(df_met) <- as.character(unlist(df_met[1,]))
+df_met <- df_met[-1,]
+
+df_met %<>% filter(imputation == "imputed") %>%
+  mutate(group = glue("{Genotype}_{Microbiota}")) %>%
+  mutate(
+    Genotype_binary = case_when(Genotype == "ASO" ~ 1,
+                                Genotype == "WT" ~ 0),
+    Microbiota_binary = case_when(Microbiota == "SPF" ~ 1,
+                                  Microbiota == "GF" ~ 0),
+  ) %>% 
+  mutate(BW = as.numeric(BW)) %>% 
+  mutate_at(10:643, as.numeric) 
+
+tube_metadata <- c(
+  "Microbiota",
+  "Genotype",
+  "BW",
+  "Brainstem",
+  "Nigra",
+  "Striatum",
+  "Cortex",
+  "Duodenum",
+  "Colon",
+  "Colon_cont ",
+  "Duo_cont.",
+  "Ceacum",
+  "Tissue",
+  "imputation",
+  "group",
+  "Genotype_binary",
+  "Microbiota_binary"
+)
+
+tissues_list <- unique(df_met$Tissue)
+metabolites <- df_met %>% dplyr::select(-(1:9), -tube_metadata) %>% colnames()
+load(glue("{wkdir}/files/analyte_class_colors.RData")) #analyte_class_colors
+
+metabolite_metadata <-
+  read_excel(glue("{wkdir}/files/caltech.PD mice.040820.xlsx"), 
+             sheet = "interaction.regcoef") %>% 
+  janitor::clean_names() %>%
+  dplyr::filter(imputation == "imputed") %>% 
+  select(metabolite, analyte_class) %>% 
+  distinct() %>% 
+  mutate(metabolite =  paste0("metabolite_", metabolite))
+
+
+```
+
+## Are body-weight correlations driven by group differences in body-weight?
+
+To answer this question we calculate correlations between all metabolites with mouse body-weight and compare results to partial correlations, regressing out microbiota and genotype effects on the data. If correlations are largely driven by group status, partial correlations will display a reduction an absolute correlation values towards zero.
+
+Utility function to calculate partial and uncorrected correlations.
+
+```{r}
+calculate_body_weight_correlation <- function(df, metabolite) {
+  suppressWarnings({
+    stat_row_1 <- cor.test(df[['BW']], df[[metabolite]], method = "spearman") %>%
+      broom::tidy() %>% 
+      mutate(partial_correlation = FALSE) %>% 
+      janitor::clean_names() %>% 
+      dplyr::select(-c(alternative, method))
+  })
+  
+  stat_row_2 <- pcor.test(
+    x = df[['BW']],
+    y = df[[metabolite]],
+    z = list(df[['Microbiota_binary']],
+             df[['Genotype_binary']]),
+    method = "spearman"
+  ) %>% 
+    mutate(partial_correlation = TRUE) %>% 
+    janitor::clean_names() %>% 
+    dplyr::select(-c(n, gp, method))
+  
+  df_out <- bind_rows(stat_row_1, stat_row_2)
+  return(df_out)
+}
+
+```
+
+Correlation calculations
+
+```{r, eval=FALSE}
+pb <-
+  progress::progress_bar$new(total = length(metabolites) * length(unique(df_met$Tissue)) )
+corr_df <- tibble()
+# For each tissue, take
+for (t in tissues_list) {
+  df_tissue <- df_met %>% filter(Tissue == t)
+  for (m in metabolites) {
+    pb$tick()
+    if (all(is.na(c(df_tissue[[m]]))) |
+        length(unique(df_tissue[[m]])) < 2) {
+      next
+    }
+    corr_df %<>% bind_rows(
+      calculate_body_weight_correlation(df_tissue, m) %>%
+        mutate(metabolite = m, tissue = t)
+    )
+  }
+}
+
+saveRDS(corr_df,
+        glue("{wkdir}/files/{Sys.Date()}_body-weight-correlations.rds")
+        )
+```
+
+```{r}
+
+corr_df <- readRDS(
+  glue("{wkdir}/files/2023-01-22_body-weight-correlations.rds")
+  )
+corr_df_wide <- corr_df %>%
+  mutate(partial_correlation = case_when(
+    partial_correlation ~ "corrected",
+    TRUE ~"uncorrected"
+  )) %>% 
+  pivot_wider(values_from = c("estimate", "statistic", "p_value"), 
+              names_from = "partial_correlation") %>% 
+  left_join(metabolite_metadata, by = "metabolite")
+
+```
+
+```{r}
+#| label: fig-p_rho
+#| fig-height: 16
+#| fig-width: 16
+#| fig-cap: "Scatterplot of Spearman's 𝞺 values (X - partial correlation correcting for Microbiota and Genotype status, Y - ungrouped correlations). Correlations were conducted using imputed data within a specific tissue type. Data points are colored by analyte class. Here we see there is a strong positive association between correlation values with and without group corrections. While there is some variability, this suggests that body-weight correlations to metabolite concentrations are not primarily driven by group status."
+
+p_rho <- corr_df_wide %>% 
+  mutate(metabolite = gsub("metabolite_", "", metabolite)) %>% 
+  ggplot(aes(estimate_corrected, estimate_uncorrected)) +
+  geom_abline(intercept = 0, slope = 1) +
+  geom_point(aes(group = metabolite, color = analyte_class), alpha = 0.9, size = 0.5) +
+  theme_bw() +
+  coord_fixed() +
+  labs(x = "Partial Correlation Rho", y = "Correlation Rho") +
+  scale_color_manual(values = analyte_class_colors) +
+  facet_wrap(~tissue)
+
+ggplotly(p_rho, tooltip = c("estimate_corrected", "estimate_uncorrected", "metabolite"))
+
+```
+
+To further visualize the variability in correlation results when correcting for group status, we plot the $\Delta$ Rho values between our models.
+
+```{r}
+#| label: fig-p_rhod
+#| fig-width: 7
+#| fig-height: 17
+#| fig-cap: "𝜟𝞺 values (𝞺 - partial correlation 𝞺) visualized for metabolites across tissues. Point shapes indicate a p-value <= 0.05 for partial correlation models, while cross-shaped data indicated non-significance. Data are colored by analyte class. A value above zero indicates a decrease in correlation strength after accounting for group status. $|0.2|$ is marked as an arbitrary threshold to indicate substantial 𝜟𝞺 values."
+
+p_rhod <- corr_df_wide %>% 
+  mutate(metabolite = gsub("metabolite_", "", metabolite)) %>% 
+  mutate(significant_partial_corr = if_else(p_value_corrected <= 0.05, TRUE, FALSE)) %>% 
+  mutate(delta_rho = estimate_uncorrected - estimate_corrected,
+         delta_hit = if_else(abs(delta_rho) >= 0.2, TRUE, FALSE)) %>% 
+  ggplot(aes(fct_reorder(metabolite, delta_rho), delta_rho)) +
+  geom_point(aes(group = metabolite, fill = analyte_class, shape = significant_partial_corr),
+             stroke = 0.1) +
+  theme_bw() +
+  geom_hline(yintercept = c(-0.2, 0.2), linetype = "dashed") +
+  facet_grid(rows = vars(tissue), space = "free", scales = "free") +
+  scale_fill_manual(values = analyte_class_colors) +
+  scale_shape_manual(values = c("TRUE" = 21, "FALSE" = 3)) +
+  labs(x = "metabolite", 
+       y = "Spearman's (rho - partial rho)",
+       color = "p-value\n(partial corr.)") +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "none")
+
+ggplotly(p_rhod, tooltip = c("delta_rho", "p_value_corrected", "metabolite", "analyte_class"))
+
+```
+
+### **Key Conclusions:**
+
+-   Body-weight x metabolite correlations are largely independent from group status, indicating a reliable metric that we can measure separately from genotype & microbiota effects. However, correlations in the striatum appear to be heavily impacted by group-status corrections.
+
+-   The striatum and plasma tissues display the largest number of metabolite correlations to body-weight, followed by notably fewer in the colon, duodenum, and other tissues.
+
+-   In the plasma and striatum, correlated metabolites largely consist of triglycerides and diglycerides, confirming our suspicions of the data. In the striatum, there is diverse representation of analyte classes with PCs, TGs, DGs, Ceramides, and others showing associations with body-weight.
+
+## What is the optimal representation of body-weight data in our regression models to capture strong body-weight x metabolite associations while also reducing degrees of freedom and maintaining power for our analysis?
+
+Can normalization, transformation, and binning provide statistical advantages for our analysis over continuous data? Here we discretize our data using Ntiles of normalized body-weight values and assess performance of linear regression models using both continuous and binned body-weight data.
+
+```{r}
+#| label: fig-bw
+#| fig-cap: "Mouse body weight displayed for each group (left). Discretized body weight data colored by mouse group identity (right)."
+#| fig-align: left
+
+# standardize BW data and quantize
+bw_df <- df_met %>% 
+  select(BW, Animal, group) %>% 
+  distinct() %>% 
+  mutate(BW_norm = (BW-mean(BW))/sd(BW) ) %>% 
+  mutate(BW_quantiles = ntile(BW_norm, 3)) %>% 
+  mutate(count = 1)
+
+p1 <- bw_df %>% 
+  ggplot(aes(x=group, y=BW)) +
+  geom_jitter() +
+  geom_boxplot(alpha = 0.2) +
+  labs(x="", y="Body Weight")
+
+p2 <- bw_df %>% 
+  ggplot(aes(fill=group, y=count, x=BW_quantiles)) + 
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_npg() +
+  labs(x="Body Weight N-tiles")
+
+print(p1 + p2 +  plot_layout(guides = "collect") & theme(legend.position = "top"))
+
+```
+
+```{r}
+
+df_test <- df_met %>% 
+  mutate(Genotype = factor(Genotype, levels = c("WT", "ASO"))) %>% 
+  group_by(Tissue) %>% 
+  mutate(BW_norm = (BW-mean(BW))/sd(BW) ) %>% 
+  mutate(BW_quantiles = ntile(BW_norm, 3)) 
+
+```
+
+Linear model implementation.
+
+$$
+log(Metabolite) \sim\  Genotype*Microbiota + BodyWeight
+$$
+
+Comparing results using body weight as is (continuous) vs binned Ntiles.
+
+```{r, eval=FALSE}
+pb <- progress::progress_bar$new(total = length(tissues_list)*length(metabolites) )
+stats_df <- tibble()
+for (t in tissues_list) {
+  df <- df_test %>% filter(Tissue == !!t)
+  for (m in metabolites) {
+    pb$tick()
+    if (all(is.na(c(df[[m]]))) |
+        length(unique(df[[m]])) < 2) {
+      next
+    }
+    lm_results <- 
+      bind_rows(
+        lm(formula(glue("log10(`{m}`) ~ Genotype * Microbiota + BW")), df) %>%
+          broom::tidy() %>% mutate(BW_data = "continuous"),
+        lm(formula(glue("log10(`{m}`) ~ Genotype * Microbiota + BW_quantiles")), df) %>%
+          broom::tidy() %>% mutate(BW_data = "binned")
+      ) %>% 
+      mutate(metabolite = m, Tissue = t)
+    stats_df %<>% bind_rows(lm_results)
+  }
+}
+
+saveRDS(stats_df, glue("{wkdir}/files/{Sys.Date()}_lm-comparisons-BW-BWquant.rds"))
+```
+
+### Visualizing model results
+
+```{r}
+#| warning: false
+
+stats_df <- readRDS(glue("{wkdir}/files/2023-01-24_lm-comparisons-BW-BWquant.rds"))
+estimate_plots <- list()
+density_plots <- list()
+for (t in tissues_list) {
+  
+  plot_df <- stats_df %>% 
+    mutate(term_category = case_when(
+      grepl("BW", term) ~ "BodyWeight",
+      TRUE ~ term
+    )) %>% 
+    filter(Tissue == !!t, 
+           term != "(Intercept)")
+  
+  metabolite_rank <- plot_df %>% 
+    filter(term_category == "BodyWeight") %>% 
+    group_by(term_category, metabolite) %>% 
+    summarize(mean_est = mean(estimate)) %>% 
+    arrange(mean_est) %>% 
+    pull(metabolite)
+  
+  bwp <- plot_df %>%
+    mutate(metabolite = factor(metabolite, levels = metabolite_rank)) %>% 
+    ggplot(aes(x = metabolite, y = estimate)) +
+    geom_point(aes(shape = BW_data, color = p.value)) +
+    facet_grid(rows = vars(term_category), cols = vars(Tissue), scales = "free") +
+    scale_shape_manual(values = c("binned" = 16, "continuous" = 2)) +
+    scale_color_viridis_c(option = "G") +
+    theme_bw() +
+    theme(axis.text.x = element_blank())
+  
+  estimate_plots[[t]] <- bwp
+  # ggplotly(bwp, tooltip = c("estimate", "p.value", "metabolite"))
+  
+  # estimate and p-value distributions
+  estimate_density <- plot_df %>% 
+    ggplot(aes(estimate)) +
+    geom_density(aes(color = BW_data)) +
+    facet_grid(rows = vars(term_category), scales = "free") +
+    theme_bw()
+  pval_density <- plot_df %>% 
+    ggplot(aes(p.value)) +
+    geom_density(aes(color = BW_data)) +
+    facet_grid(rows = vars(term_category), scales = "free") +
+    theme_bw()
+  
+  density_plots[[t]] <- (estimate_density + pval_density) + plot_layout(guides = "collect") 
+}
+
+```
+
+::: panel-tabset
+## Plasma
+
+```{r}
+#| label: fig-plasma-est
+#| fig-width: 8
+#| fig-height: 10
+#| fig-cap: "Linear regression model estimates. Rows of the plot indicate unique parameters, shape of the data represents if the model was run using binned vs. continuous body-weight data and  color indicates the significance of each estimate."
+ggplotly(estimate_plots$Plasma, tooltip = c("estimate", "p.value", "metabolite"))
+```
+
+```{r}
+#| label: fig-plasma-density
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Density distributions of model parameters for estimates (left) and p-values (right)"
+density_plots$Plasma
+```
+
+## Brainstem
+
+```{r}
+#| label: fig-Brainstem-est
+#| fig-width: 8
+#| fig-height: 10
+#| fig-cap: "Linear regression model estimates. Rows of the plot indicate unique parameters, shape of the data represents if the model was run using binned vs. continuous body-weight data and  color indicates the significance of each estimate."
+ggplotly(estimate_plots$Brainstem, tooltip = c("estimate", "p.value", "metabolite"))
+```
+
+```{r}
+#| label: fig-Brainstem-density
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Density distributions of model parameters for estimates (left) and p-values (right)"
+density_plots$Brainstem
+```
+
+## Cortex
+
+```{r}
+#| label: fig-Cortex-est
+#| fig-width: 8
+#| fig-height: 10
+#| fig-cap: "Linear regression model estimates. Rows of the plot indicate unique parameters, shape of the data represents if the model was run using binned vs. continuous body-weight data and  color indicates the significance of each estimate."
+ggplotly(estimate_plots$Cortex, tooltip = c("estimate", "p.value", "metabolite"))
+```
+
+```{r}
+#| label: fig-Cortex-density
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Density distributions of model parameters for estimates (left) and p-values (right)"
+density_plots$Cortex
+```
+
+## Striatum
+
+```{r}
+#| label: fig-Striatum-est
+#| fig-width: 8
+#| fig-height: 10
+#| fig-cap: "Linear regression model estimates. Rows of the plot indicate unique parameters, shape of the data represents if the model was run using binned vs. continuous body-weight data and  color indicates the significance of each estimate."
+ggplotly(estimate_plots$Striatum, tooltip = c("estimate", "p.value", "metabolite"))
+```
+
+```{r}
+#| label: fig-Striatum-density
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Density distributions of model parameters for estimates (left) and p-values (right)"
+density_plots$Striatum
+```
+
+## Nigra
+
+```{r}
+#| label: fig-Nigra-est
+#| fig-width: 8
+#| fig-height: 10
+#| fig-cap: "Linear regression model estimates. Rows of the plot indicate unique parameters, shape of the data represents if the model was run using binned vs. continuous body-weight data and  color indicates the significance of each estimate."
+ggplotly(estimate_plots$Nigra, tooltip = c("estimate", "p.value", "metabolite"))
+```
+
+```{r}
+#| label: fig-Nigra-density
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Density distributions of model parameters for estimates (left) and p-values (right)"
+density_plots$Nigra
+```
+
+## Duodenum
+
+```{r}
+#| label: fig-Duodenum-est
+#| fig-width: 8
+#| fig-height: 10
+#| fig-cap: "Linear regression model estimates. Rows of the plot indicate unique parameters, shape of the data represents if the model was run using binned vs. continuous body-weight data and  color indicates the significance of each estimate."
+ggplotly(estimate_plots$Duodenum, tooltip = c("estimate", "p.value", "metabolite"))
+```
+
+```{r}
+#| label: fig-Duodenum-density
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Density distributions of model parameters for estimates (left) and p-values (right)"
+density_plots$Duodenum
+```
+
+## Duodenum Content
+
+```{r}
+#| label: fig-DuodenumContent-est
+#| fig-width: 8
+#| fig-height: 10
+#| fig-cap: "Linear regression model estimates. Rows of the plot indicate unique parameters, shape of the data represents if the model was run using binned vs. continuous body-weight data and  color indicates the significance of each estimate."
+ggplotly(estimate_plots$`Duodenum Content`, tooltip = c("estimate", "p.value", "metabolite"))
+```
+
+```{r}
+#| label: fig-fig-DuodenumContent-density
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Density distributions of model parameters for estimates (left) and p-values (right)"
+density_plots$`Duodenum Content`
+```
+
+## Cecum
+
+```{r}
+#| label: fig-Cecum-est
+#| fig-width: 8
+#| fig-height: 10
+#| fig-cap: "Linear regression model estimates. Rows of the plot indicate unique parameters, shape of the data represents if the model was run using binned vs. continuous body-weight data and  color indicates the significance of each estimate."
+ggplotly(estimate_plots$Cecum, tooltip = c("estimate", "p.value", "metabolite"))
+```
+
+```{r}
+#| label: fig-Cecum-density
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Density distributions of model parameters for estimates (left) and p-values (right)"
+density_plots$Cecum
+```
+
+## Colon
+
+```{r}
+#| label: fig-Colon-est
+#| fig-width: 8
+#| fig-height: 10
+#| fig-cap: "Linear regression model estimates. Rows of the plot indicate unique parameters, shape of the data represents if the model was run using binned vs. continuous body-weight data and  color indicates the significance of each estimate."
+ggplotly(estimate_plots$Colon, tooltip = c("estimate", "p.value", "metabolite"))
+```
+
+```{r}
+#| label: fig-Colon-density
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Density distributions of model parameters for estimates (left) and p-values (right)"
+density_plots$Colon
+```
+
+## Colon Content
+
+```{r}
+#| label: fig-ColonContent-est
+#| fig-width: 8
+#| fig-height: 10
+#| fig-cap: "Linear regression model estimates. Rows of the plot indicate unique parameters, shape of the data represents if the model was run using binned vs. continuous body-weight data and  color indicates the significance of each estimate."
+ggplotly(estimate_plots$`Colon Content`, tooltip = c("estimate", "p.value", "metabolite"))
+```
+
+```{r}
+#| label: fig-ColonContent-density
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Density distributions of model parameters for estimates (left) and p-values (right)"
+density_plots$`Colon Content`
+```
+:::
+
+### **Key Conclusions:**
+
+-   In all tissues, modeling binned body-weight data provides a more clear signal for metabolites associated with BW, apparent through larger effect sizes and greater significance of the body weight parameter. Metabolites with the strongest associations are highlighted while more sporatic associations appear to drop out when using binned vs. continuous data.
+
+-   The impact of using binned body-weight on other model parameters is less clear; however, most tissues appear to display little to no effect on estimate distributions with slightly improved p-value distributions. Striatum tissue is the exception here.
+
+-   Overall, using binned body-weight data may improve our interpretation of model results.
+
+```{r}
+sessionInfo()
+```
