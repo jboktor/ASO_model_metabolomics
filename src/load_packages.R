@@ -3,7 +3,7 @@
 # if (!requireNamespace("BiocManager", quietly = TRUE))
 #   install.packages("BiocManager")
 # 
-# BiocManager::install("BiocGenerics") 
+# BiocManager::install("BiocGenerics")
 
 library(eulerr)
 library(dplyr)
@@ -29,5 +29,8 @@ library(UpSetR)
 library(ggsci)
 library(psych)
 library(svglite)
+library(ggpubr)
+library(doParallel)
 
-# library(doParallel)
+library(magrittr)
+library(glue)

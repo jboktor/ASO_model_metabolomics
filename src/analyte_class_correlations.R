@@ -5,7 +5,7 @@
 source("src/load_packages.R")
 source("src/functions.R") 
 load("files/analyte_class_colors.RData")
-
+library(glue)
 
 # load data ----
 df.quant.raw <-
@@ -19,7 +19,7 @@ df.quant.LODvals <-
              sheet = "LOD Thresholds")
 
 df.analyte.map <-
-  read_excel("files/caltech.PD mice.040820.xlsx", 
+  read_excel("files/caltech.PD mice.022223.xlsx", 
              sheet = "interaction.anova") %>% 
   janitor::clean_names() %>% 
   select(metabolite, metabolite_name, analyte_class) %>% 
@@ -204,14 +204,14 @@ df.cor.str <-
   )
 
 
-df.cor.str <-
-  cor.test(
-    x = df.quant.plasma,
-    y = df.quant.Striatum,
-    method = "spearman",
-    na.action = na.exclude,
-    alternative = "two.sided"
-  )
+# df.cor.str <-
+#   cor.test(
+#     x = df.quant.plasma,
+#     y = df.quant.Striatum,
+#     method = "spearman",
+#     na.action = na.exclude,
+#     alternative = "two.sided"
+#   )
 
 #_______________________________________________________________________________
 #                              Plotting ----

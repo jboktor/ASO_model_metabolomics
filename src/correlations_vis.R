@@ -1,7 +1,7 @@
-
 source("src/load_packages.R")
 source("src/functions.R") 
-load("files/analyte_class_colors.RData")
+# load("files/analyte_class_colors.RData")
+analyte_class_colors <- readRDS(glue("files/analyte_class_colors_grouped.rds"))
 
 corr_imputed_r <-
   read_excel("data/Correlations/caltech PD mice model Cor.060921.xlsx", 
@@ -25,6 +25,7 @@ corr_plasma_df <-
   separate(featB, c("featB", "tissue_B"), sep = "___") %>% 
   filter(tissue_A == "Plasma",
          featA == featB)
+saveRDS(corr_plasma_df, "files/plasma_correlation_data.rds")
 
 class_filter <- 
   corr_plasma_df %>% 
@@ -36,6 +37,7 @@ class_filter <-
   filter(count > 3) %>% 
   pull(analyte_class) %>% 
   unique()
+
 
 # Tissue Specific X-axis
 for (class in class_filter){
@@ -63,7 +65,7 @@ for (class in class_filter){
   print(plot)
   
   plt_name <- paste0("data/Correlations/plasma_correlations_", class, ".svg")
-  ggsave(plot, filename = plt_name, width = 6, height  = 4)
+  #gsave(plot, filename = plt_name, width = 6, height  = 4)
   
   }
 
@@ -94,12 +96,14 @@ for (class in class_filter){
   print(plot)
   
   plt_name <- paste0("data/Correlations/plasma_correlations_tissue_source_", class, ".svg")
-  ggsave(plot, filename = plt_name, width = 3.2, height  = 4)
+  #gsave(plot, filename = plt_name, width = 3.2, height  = 4)
   
 }
 
 
 # Plot features w/ strongest correlations across all tissues 
+
+corr_plasma_df <- readRDS("files/plasma_correlation_data.rds")
 
 strong_cors <- 
   corr_plasma_df %>% 
@@ -124,8 +128,8 @@ plasma_corr_top <-
         strip.text.y.left = element_text(angle = 0),
         panel.grid.major.y = element_blank())
 plasma_corr_top
-ggsave(plasma_corr_top, filename = "data/Correlations/plasma_correlations_top_metabolite_corrs.svg", 
-       width = 8, height  = 8)
+ggsave(plasma_corr_top, filename = glue("data/Correlations/{Sys.Date()}_plasma_correlations_top_metabolite_corrs.png"),
+       width = 6, height  = 8)
 
   
   

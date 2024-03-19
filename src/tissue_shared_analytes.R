@@ -1,9 +1,10 @@
 # Metabolomics Analysis - Venn Diagrams/Heatmap/Upset plots
 
 source("src/load_packages.R")
+library(glue)
 
 df.interact <-
-  read_excel("files/caltech.PD mice.040820.xlsx", sheet = "interaction.regcoef") %>% 
+  read_excel("files/caltech.PD mice.022223.xlsx", sheet = "interaction.regcoef") %>% 
   janitor::clean_names() 
 
 tissue_levels <- c(
@@ -24,7 +25,7 @@ tissue_levels <- c(
 # -----------------------------------------------------------------------------
 
 df.interact.A <-
-  read_excel("files/caltech.PD mice.040820.xlsx", 
+  read_excel("files/caltech.PD mice.022223.xlsx", 
              sheet = "interaction.regcoef") %>% 
   janitor::clean_names() %>%
   dplyr::filter(imputation == "imputed") 
@@ -34,7 +35,7 @@ df.interact.A <-
 # -----------------------------------------------------------------------------
 
 df.sig.M <- 
-  df.interact.A %>% filter(pr_t <= 0.05, variable == "MicrobiotaSPF") %>% 
+  df.interact.A %>% filter(p_value <= 0.05, term == "MicrobiotaSPF") %>% 
   select(metabolite, tissue) %>% 
   pivot_wider(names_from = "tissue", 
               values_from = "tissue", 
@@ -42,10 +43,10 @@ df.sig.M <-
               values_fn = function(x) "1")
 df.heatmap.M <- df.sig.M %>% 
   pivot_longer(!metabolite, names_to = "tissue", values_to = "detected") %>% 
-  mutate(variable = "Microbiota Effect \n(SPF / GF)")
+  mutate(term = "Microbiota Effect \n(SPF / GF)")
 
 df.sig.G <- 
-  df.interact.A %>% filter(pr_t <= 0.05, variable == "GenotypeASO") %>% 
+  df.interact.A %>% filter(p_value <= 0.05, term == "GenotypeASO") %>% 
   select(metabolite, tissue) %>% 
   pivot_wider(names_from = "tissue", 
               values_from = "tissue", 
@@ -53,10 +54,10 @@ df.sig.G <-
               values_fn = function(x) "1")
 df.heatmap.G <- df.sig.G %>% 
   pivot_longer(!metabolite, names_to = "tissue", values_to = "detected") %>% 
-  mutate(variable = "Genotype Effect \n(ASO / WT)")
+  mutate(term = "Genotype Effect \n(ASO / WT)")
 
 df.sig.interact <- 
-  df.interact.A %>% filter(pr_t <= 0.05, variable == "MicrobiotaSPF:GenotypeASO") %>% 
+  df.interact.A %>% filter(p_value <= 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% 
   select(metabolite, tissue) %>% 
   pivot_wider(names_from = "tissue", 
               values_from = "tissue", 
@@ -64,7 +65,7 @@ df.sig.interact <-
               values_fn = function(x) "1")
 df.heatmap.I <- df.sig.interact %>% 
   pivot_longer(!metabolite, names_to = "tissue", values_to = "detected") %>% 
-  mutate(variable = "Microbiota x Genotype \nInteraction")
+  mutate(term = "Microbiota x Genotype \nInteraction")
 
 df.heatmap <- 
   bind_rows(df.heatmap.M, df.heatmap.G, df.heatmap.I) %>% 
@@ -76,7 +77,7 @@ shared.sig.heatmap <- df.heatmap %>%
   theme_classic() +
   labs(x = NULL, y = "Analytes") +
   scale_fill_manual(values = c("0" = "#f1f1f1", "1" = "#434343")) +
-  facet_wrap(~variable) +
+  facet_wrap(~term) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     axis.text.y = element_blank(),
@@ -85,48 +86,61 @@ shared.sig.heatmap <- df.heatmap %>%
     legend.position = "none"
   )
 
-ggsave(shared.sig.heatmap, filename = "data/Heatmaps/Shared_Significance_Heatmap_facet.png", 
-       width = 6, height = 9, dpi = 2400)
+ggsave(shared.sig.heatmap, filename = glue("data/Heatmaps/{Sys.Date()}_Shared_Significance_Heatmap_facet.svg"), 
+       width = 6, height = 9)
+
 
 
 # -----------------------------------------------------------------------------
 #                              Upset Plot 
 # -----------------------------------------------------------------------------
 
-
 df.upset.micro <-
   df.heatmap %>%
-  filter(variable == "Microbiota Effect \n(SPF / GF)") %>%
+  filter(term == "Microbiota Effect \n(SPF / GF)") %>%
   pivot_wider(names_from = 'tissue', values_from = 'detected') %>%
-  select(-c(metabolite, variable)) %>% 
+  column_to_rownames(var = "metabolite") %>% 
+  select(-c(term)) %>% 
   mutate_if(is.character, as.numeric) %>% 
   as.data.frame()
 
-upset.micro <-
-  upset(
-    df.upset.micro,
-    nintersects = 30,
-    nsets = 10,
-    order.by = "freq",
-    decreasing = T,
-    mb.ratio = c(0.6, 0.4),
-    number.angles = 0,
-    text.scale = 1.1,
-    point.size = 2.8,
-    line.size = 1
-  )
+svg(
+  glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota.svg"),
+  width = 8,
+  height = 4.5
+)
 
-dev.copy(png,'data/Venn_Diagrams/Upset_Microbiota.png', 
-         width = 600, height = 300)
+upset(
+  df.upset.micro,
+  nintersects = 30,
+  nsets = 10,
+  order.by = "freq",
+  decreasing = T,
+  mb.ratio = c(0.6, 0.4),
+  number.angles = 0,
+  text.scale = 1.1,
+  point.size = 2.8,
+  line.size = 1
+)
+
+# dev.copy(png,glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota.png"), 
+#          width = 600, height = 300)
 dev.off()
 
 df.upset.geno <-
   df.heatmap %>%
-  filter(variable == "Genotype Effect \n(ASO / WT)") %>%
+  filter(term == "Genotype Effect \n(ASO / WT)") %>%
   pivot_wider(names_from = 'tissue', values_from = 'detected') %>%
-  select(-c(metabolite, variable)) %>% 
+  column_to_rownames(var = "metabolite") %>% 
+  select(-c(term)) %>% 
   mutate_if(is.character, as.numeric) %>% 
   as.data.frame()
+
+svg(
+  glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Genotype.svg"),
+  width = 8,
+  height = 4.5
+)
 
 upset(
   df.upset.geno,
@@ -141,15 +155,24 @@ upset(
   line.size = 1
 )
 
-dev.copy(png,'data/Venn_Diagrams/Upset_Genotype.png', 
-         width = 600, height = 300)
+# dev.copy(png,glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Genotype.png"),
+#          width = 600, height = 300)
 dev.off()
+
+
+
+svg(
+  glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota_x_Genotype.svg"),
+  width = 8,
+  height = 4.5
+)
 
 df.upset.interaction <-
   df.heatmap %>%
-  filter(variable == "Microbiota x Genotype \nInteraction") %>%
+  filter(term == "Microbiota x Genotype \nInteraction") %>%
   pivot_wider(names_from = 'tissue', values_from = 'detected') %>%
-  select(-c(metabolite, variable)) %>% 
+  column_to_rownames(var = "metabolite") %>% 
+  select(-c(term)) %>% 
   mutate_if(is.character, as.numeric) %>% 
   as.data.frame()
 
@@ -166,21 +189,13 @@ upset(
   line.size = 1
 )
 
-dev.copy(png,'data/Venn_Diagrams/Upset_Microbiota_x_Genotype.png', 
-         width = 600, height = 300)
+# dev.copy(png,glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota_x_Genotype.png"), 
+#          width = 600, height = 300)
 dev.off()
 
-# df.upset <-
-#   df.heatmap %>%
-#   filter(variable == "Microbiota x Genotype \nInteraction") %>%
-#   pivot_wider(names_from = 'tissue', values_from = 'detected') %>%
-#   # select(-c(metabolite, variable)) %>% 
-#   mutate_at(c("Brainstem", "Cecum", "Colon", "Colon Content", "Cortex", "Duodenum",
-#               "Duodenum Content", "Nigra", "Plasma", "Striatum"), as.numeric) %>% 
-#   as.data.frame()
-
-
-
+write.csv(df.upset.micro, file ="files/Upset_Microbiota.csv", quote = FALSE)
+write.csv(df.upset.geno, file ="files/Upset_Genotype.csv", quote = FALSE)
+write.csv(df.upset.interaction, file ="files/Upset_Microbiota_x_Genotype.csv", quote = FALSE)
 
 
 # -----------------------------------------------------------------------------
@@ -191,13 +206,13 @@ dev.off()
 # Microbiota
 venn.diagram(
   x = list(
-    df.interact.A %>% filter(tissue == "Brainstem", pr_t < 0.05, variable == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Cortex", pr_t < 0.05, variable == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Nigra", pr_t < 0.05, variable == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Striatum", pr_t < 0.05, variable == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist()
+    df.interact.A %>% filter(tissue == "Brainstem", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Cortex", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Nigra", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Striatum", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Brainstem", "Cortex" , "Nigra", "Striatum"),
-  filename = 'data/Venn_Diagrams/venn_brain_Microbiota.png',
+  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_brain_Microbiota.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 480 , 
@@ -218,13 +233,13 @@ venn.diagram(
 # Genotype
 venn.diagram(
   x = list(
-    df.interact.A %>% filter(tissue == "Brainstem", pr_t < 0.05, variable == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Cortex", pr_t < 0.05, variable == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Nigra", pr_t < 0.05, variable == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Striatum", pr_t < 0.05, variable == "GenotypeASO") %>% select(metabolite_name) %>% unlist()
+    df.interact.A %>% filter(tissue == "Brainstem", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Cortex", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Nigra", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Striatum", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Brainstem", "Cortex" , "Nigra", "Striatum"),
-  filename = 'data/Venn_Diagrams/venn_brain_Genotype.png',
+  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_brain_Genotype.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 480 , 
@@ -246,13 +261,13 @@ venn.diagram(
 # Genotype
 venn.diagram(
   x = list(
-    df.interact.A %>% filter(tissue == "Brainstem", pr_t < 0.05, variable == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Cortex", pr_t < 0.05, variable == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Nigra", pr_t < 0.05, variable == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Striatum", pr_t < 0.05, variable == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist()
+    df.interact.A %>% filter(tissue == "Brainstem", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Cortex", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Nigra", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Striatum", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Brainstem", "Cortex" , "Nigra", "Striatum"),
-  filename = 'data/Venn_Diagrams/venn_brain_Microbiota_X_Genotype.png',
+  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_brain_Microbiota_X_Genotype.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 480 , 
@@ -279,14 +294,14 @@ venn.diagram(
 # Microbiota
 venn.diagram(
   x = list(
-    df.interact.A %>% filter(tissue == "Cecum", pr_t < 0.05, variable == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Colon", pr_t < 0.05, variable == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Colon Content", pr_t < 0.05, variable == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Duodenum", pr_t < 0.05, variable == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Duodenum Content", pr_t < 0.05, variable == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist()
+    df.interact.A %>% filter(tissue == "Cecum", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Colon", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Colon Content", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Duodenum", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Duodenum Content", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Cecum", "Colon", "Colon Content", "Duodenum", "Duodenum Content"),
-  filename = 'data/Venn_Diagrams/venn_gut_Microbiota.png',
+  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_gut_Microbiota.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 960 , 
@@ -307,14 +322,14 @@ venn.diagram(
 # Genotype
 venn.diagram(
   x = list(
-    df.interact.A %>% filter(tissue == "Cecum", pr_t < 0.05, variable == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Colon", pr_t < 0.05, variable == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Colon Content", pr_t < 0.05, variable == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Duodenum", pr_t < 0.05, variable == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Duodenum Content", pr_t < 0.05, variable == "GenotypeASO") %>% select(metabolite_name) %>% unlist()
+    df.interact.A %>% filter(tissue == "Cecum", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Colon", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Colon Content", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Duodenum", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Duodenum Content", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Cecum", "Colon", "Colon Content", "Duodenum", "Duodenum Content"),
-  filename = 'data/Venn_Diagrams/venn_gut_Genotype.png',
+  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_gut_Genotype.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 960 , 
@@ -336,14 +351,14 @@ venn.diagram(
 # Microbiota X Genotype
 venn.diagram(
   x = list(
-    df.interact.A %>% filter(tissue == "Cecum", pr_t < 0.05, variable == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Colon", pr_t < 0.05, variable == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Colon Content", pr_t < 0.05, variable == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Duodenum", pr_t < 0.05, variable == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
-    df.interact.A %>% filter(tissue == "Duodenum Content", pr_t < 0.05, variable == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist()
+    df.interact.A %>% filter(tissue == "Cecum", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Colon", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Colon Content", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Duodenum", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist(),
+    df.interact.A %>% filter(tissue == "Duodenum Content", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Cecum", "Colon", "Colon Content", "Duodenum", "Duodenum Content"),
-  filename = 'data/Venn_Diagrams/venn_gut_Microbiota_X_Genotype.png',
+  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_gut_Microbiota_X_Genotype.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 960 , 
