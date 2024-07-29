@@ -4,7 +4,7 @@ source("src/functions.R")
 analyte_class_colors <- readRDS(glue("files/analyte_class_colors_grouped.rds"))
 
 corr_imputed_r <-
-  read_excel("data/Correlations/caltech PD mice model Cor.060921.xlsx", 
+  read_excel("figures/Correlations/caltech PD mice model Cor.060921.xlsx", 
              sheet = "imputed data - Spearman r")
 
 df.analyte.map <-
@@ -64,7 +64,7 @@ for (class in class_filter){
           axis.text.x = element_text(angle = 45, hjust = 1))
   print(plot)
   
-  plt_name <- paste0("data/Correlations/plasma_correlations_", class, ".svg")
+  plt_name <- paste0("figures/Correlations/plasma_correlations_", class, ".svg")
   #gsave(plot, filename = plt_name, width = 6, height  = 4)
   
   }
@@ -95,7 +95,7 @@ for (class in class_filter){
           axis.text.x = element_text(angle = 45, hjust = 1))
   print(plot)
   
-  plt_name <- paste0("data/Correlations/plasma_correlations_tissue_source_", class, ".svg")
+  plt_name <- paste0("figures/Correlations/plasma_correlations_tissue_source_", class, ".svg")
   #gsave(plot, filename = plt_name, width = 3.2, height  = 4)
   
 }
@@ -128,7 +128,7 @@ plasma_corr_top <-
         strip.text.y.left = element_text(angle = 0),
         panel.grid.major.y = element_blank())
 plasma_corr_top
-ggsave(plasma_corr_top, filename = glue("data/Correlations/{Sys.Date()}_plasma_correlations_top_metabolite_corrs.png"),
+ggsave(plasma_corr_top, filename = glue("figures/Correlations/{Sys.Date()}_plasma_correlations_top_metabolite_corrs.png"),
        width = 6, height  = 8)
 
 
@@ -150,7 +150,7 @@ cor_mat <- strong_cors %>%
 
 
 svg(
-  glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Plasma-Metabolite_corrs.svg"),
+  glue("figures/Venn_Diagrams/{Sys.Date()}_Upset_Plasma-Metabolite_corrs.svg"),
   width = 8,
   height = 4.5
 )
@@ -224,7 +224,7 @@ network_plot <- ggraph(graph, layout = 'stress') +
 
 
 ggsave(
-  glue("data/Correlations/{Sys.Date()}_plasma_correlations_top_metabolite_network.svg"),
+  glue("figures/Correlations/{Sys.Date()}_plasma_correlations_top_metabolite_network.svg"),
   network_plot, 
   width = 8, height  = 6
   )

@@ -23,5 +23,5 @@ writeDataTable(wb, "unimputed data - Spearman r" ,corr$unimputed$r%>% data.frame
 
 addWorksheet(wb,"unimputed data - Spearman r-p")
 writeDataTable(wb, "unimputed data - Spearman r-p" ,corr$unimputed$p%>% data.frame (., check.names = F), rowNames = T)
-saveWorkbook(wb, "data/Correlations/caltech PD mice model Cor.060921.xlsx", overwrite = TRUE) 
+saveWorkbook(wb, "figures/Correlations/caltech PD mice model Cor.060921.xlsx", overwrite = TRUE) 
 

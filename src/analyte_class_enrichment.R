@@ -105,7 +105,7 @@ estimate_all <-
 
 ggsave(
   estimate_all,
-  filename = glue("data/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_all.svg"),
+  filename = glue("figures/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_all.svg"),
   width = 15,
   height = 4.5,
   dpi = 600
@@ -136,7 +136,7 @@ colorblindr::cvd_grid(estimate_all_free)
 
 ggsave(
   estimate_all_free,
-  filename = glue("data/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_all_free.svg"),
+  filename = glue("figures/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_all_free.svg"),
   width = 15,
   height = 4.5,
   dpi = 600
@@ -172,7 +172,7 @@ estimate_sig <-
 
 ggsave(
   estimate_sig,
-  filename = glue("data/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_significant.svg"),
+  filename = glue("figures/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_significant.svg"),
   width = 15,
   height = 4.5,
   dpi = 600
@@ -201,14 +201,14 @@ estimate_sig_free <-
 
 ggsave(
   estimate_sig_free,
-  filename = glue("data/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_significant_free.svg"),
+  filename = glue("figures/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_significant_free.svg"),
   width = 15,
   height = 4.5,
   dpi = 600
 )
 ggsave(
   estimate_sig_free,
-  filename = glue("data/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_significant_free.png"),
+  filename = glue("figures/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_significant_free.png"),
   width = 15,
   height = 4.5,
   dpi = 600
@@ -236,7 +236,7 @@ estimate_sig_free_interact <-
 
 ggsave(
   estimate_sig_free_interact,
-  filename = glue("data/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_significant_free_interactionOnly.svg"),
+  filename = glue("figures/Analyte_class_estimates/{Sys.Date()}_Analyte_Class_Estimate_average_significant_free_interactionOnly.svg"),
   width = 8,
   height = 5
   )
@@ -283,16 +283,16 @@ for(tissue_target in "Plasma"){
   print(plot)
 
   ggsave(plot, filename =
-           glue("data/Analyte_class_estimates/{Sys.Date()}_Subplot_{tissue_target}_Analyte_class_enrichment.svg"),
+           glue("figures/Analyte_class_estimates/{Sys.Date()}_Subplot_{tissue_target}_Analyte_class_enrichment.svg"),
          width = 9, height = 4)
   ggsave(plot.legend, filename =
-           glue("data/Analyte_class_estimates/{Sys.Date()}_Subplot_{tissue_target}_Analyte_class_enrichment_LEGEND.svg"),
+           glue("figures/Analyte_class_estimates/{Sys.Date()}_Subplot_{tissue_target}_Analyte_class_enrichment_LEGEND.svg"),
          width = 5, height = 10)
   ggsave(plot, filename =
-           glue("data/Analyte_class_estimates/{Sys.Date()}_Subplot_{tissue_target}_Analyte_class_enrichment.png"),
+           glue("figures/Analyte_class_estimates/{Sys.Date()}_Subplot_{tissue_target}_Analyte_class_enrichment.png"),
          width = 9, height = 4)
   ggsave(plot.legend, filename =
-           glue("data/Analyte_class_estimates/{Sys.Date()}_Subplot_{tissue_target}_Analyte_class_enrichment_LEGEND.png"),
+           glue("figures/Analyte_class_estimates/{Sys.Date()}_Subplot_{tissue_target}_Analyte_class_enrichment_LEGEND.png"),
          width = 5, height = 10)
   }
 
@@ -325,7 +325,7 @@ brain.summary <- brain.summary + theme(legend.position = "bottom")
 print(brain.summary)
 
 ggsave(brain.summary, filename =
-         glue("data/Analyte_class_estimates/{Sys.Date()}_Subplot_BrainSummary_Analyte_class_enrichment.svg"),
+         glue("figures/Analyte_class_estimates/{Sys.Date()}_Subplot_BrainSummary_Analyte_class_enrichment.svg"),
        width = 10, height = 6)
 
 #----------------------------------
@@ -355,7 +355,7 @@ gut.summary <- gut.summary + theme(legend.position = "bottom")
 print(gut.summary)
 
 ggsave(gut.summary, filename =
-         glue("data/Analyte_class_estimates/{Sys.Date()}_Subplot_GutSummary_Analyte_class_enrichment.svg"),
+         glue("figures/Analyte_class_estimates/{Sys.Date()}_Subplot_GutSummary_Analyte_class_enrichment.svg"),
        width = 10, height = 6)
 
 

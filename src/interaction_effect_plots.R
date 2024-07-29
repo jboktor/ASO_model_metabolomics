@@ -85,7 +85,7 @@ for (toi in unique(df.interact.A$tissue)){
   
   plot <- interact_plot(df.interact, features_of_interest) 
   print(plot)
-  ggsave(paste0("data/Interaction_plots/", Sys.Date(), "_Interaction_plot_", toi, "_v2.0.svg"), 
+  ggsave(paste0("figures/Interaction_plots/", Sys.Date(), "_Interaction_plot_", toi, "_v2.0.svg"), 
          #dpi = 600,
          width = 6, height = 6)
 }

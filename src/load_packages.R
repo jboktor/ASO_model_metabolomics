@@ -1,17 +1,16 @@
 # Packages required
 
+# options(pkgType="binary")
 # if (!requireNamespace("BiocManager", quietly = TRUE))
 #   install.packages("BiocManager")
 # 
 # BiocManager::install("BiocGenerics")
 
-library(eulerr)
-library(dplyr)
+#library(eulerr)
 library(tidyverse)
 library(readr)
 library(tibble)
 library(BiocGenerics)
-library(ggplot2)
 library(forcats)
 library(ggrepel)
 library(ggdendro)
@@ -31,6 +30,6 @@ library(psych)
 library(svglite)
 library(ggpubr)
 library(doParallel)
-
 library(magrittr)
 library(glue)
+

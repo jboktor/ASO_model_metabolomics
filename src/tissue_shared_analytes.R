@@ -86,7 +86,7 @@ shared.sig.heatmap <- df.heatmap %>%
     legend.position = "none"
   )
 
-ggsave(shared.sig.heatmap, filename = glue("data/Heatmaps/{Sys.Date()}_Shared_Significance_Heatmap_facet.svg"), 
+ggsave(shared.sig.heatmap, filename = glue("figures/Heatmaps/{Sys.Date()}_Shared_Significance_Heatmap_facet.svg"), 
        width = 6, height = 9)
 
 
@@ -105,7 +105,7 @@ df.upset.micro <-
   as.data.frame()
 
 svg(
-  glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota.svg"),
+  glue("figures/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota.svg"),
   width = 8,
   height = 4.5
 )
@@ -123,7 +123,7 @@ upset(
   line.size = 1
 )
 
-# dev.copy(png,glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota.png"), 
+# dev.copy(png,glue("figures/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota.png"), 
 #          width = 600, height = 300)
 dev.off()
 
@@ -137,7 +137,7 @@ df.upset.geno <-
   as.data.frame()
 
 svg(
-  glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Genotype.svg"),
+  glue("figures/Venn_Diagrams/{Sys.Date()}_Upset_Genotype.svg"),
   width = 8,
   height = 4.5
 )
@@ -155,14 +155,14 @@ upset(
   line.size = 1
 )
 
-# dev.copy(png,glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Genotype.png"),
+# dev.copy(png,glue("figures/Venn_Diagrams/{Sys.Date()}_Upset_Genotype.png"),
 #          width = 600, height = 300)
 dev.off()
 
 
 
 svg(
-  glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota_x_Genotype.svg"),
+  glue("figures/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota_x_Genotype.svg"),
   width = 8,
   height = 4.5
 )
@@ -189,7 +189,7 @@ upset(
   line.size = 1
 )
 
-# dev.copy(png,glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota_x_Genotype.png"), 
+# dev.copy(png,glue("figures/Venn_Diagrams/{Sys.Date()}_Upset_Microbiota_x_Genotype.png"), 
 #          width = 600, height = 300)
 dev.off()
 
@@ -212,7 +212,7 @@ venn.diagram(
     df.interact.A %>% filter(tissue == "Striatum", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Brainstem", "Cortex" , "Nigra", "Striatum"),
-  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_brain_Microbiota.png"),
+  filename = glue("figures/Venn_Diagrams/{Sys.Date()}_venn_brain_Microbiota.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 480 , 
@@ -239,7 +239,7 @@ venn.diagram(
     df.interact.A %>% filter(tissue == "Striatum", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Brainstem", "Cortex" , "Nigra", "Striatum"),
-  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_brain_Genotype.png"),
+  filename = glue("figures/Venn_Diagrams/{Sys.Date()}_venn_brain_Genotype.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 480 , 
@@ -267,7 +267,7 @@ venn.diagram(
     df.interact.A %>% filter(tissue == "Striatum", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Brainstem", "Cortex" , "Nigra", "Striatum"),
-  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_brain_Microbiota_X_Genotype.png"),
+  filename = glue("figures/Venn_Diagrams/{Sys.Date()}_venn_brain_Microbiota_X_Genotype.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 480 , 
@@ -301,7 +301,7 @@ venn.diagram(
     df.interact.A %>% filter(tissue == "Duodenum Content", p_value < 0.05, term == "MicrobiotaSPF") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Cecum", "Colon", "Colon Content", "Duodenum", "Duodenum Content"),
-  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_gut_Microbiota.png"),
+  filename = glue("figures/Venn_Diagrams/{Sys.Date()}_venn_gut_Microbiota.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 960 , 
@@ -329,7 +329,7 @@ venn.diagram(
     df.interact.A %>% filter(tissue == "Duodenum Content", p_value < 0.05, term == "GenotypeASO") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Cecum", "Colon", "Colon Content", "Duodenum", "Duodenum Content"),
-  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_gut_Genotype.png"),
+  filename = glue("figures/Venn_Diagrams/{Sys.Date()}_venn_gut_Genotype.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 960 , 
@@ -358,7 +358,7 @@ venn.diagram(
     df.interact.A %>% filter(tissue == "Duodenum Content", p_value < 0.05, term == "MicrobiotaSPF:GenotypeASO") %>% select(metabolite_name) %>% unlist()
   ),
   category.names = c("Cecum", "Colon", "Colon Content", "Duodenum", "Duodenum Content"),
-  filename = glue("data/Venn_Diagrams/{Sys.Date()}_venn_gut_Microbiota_X_Genotype.png"),
+  filename = glue("figures/Venn_Diagrams/{Sys.Date()}_venn_gut_Microbiota_X_Genotype.png"),
   output = TRUE ,
   imagetype="png" ,
   height = 960 , 
