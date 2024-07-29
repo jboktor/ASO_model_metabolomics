@@ -131,5 +131,108 @@ plasma_corr_top
 ggsave(plasma_corr_top, filename = glue("data/Correlations/{Sys.Date()}_plasma_correlations_top_metabolite_corrs.png"),
        width = 6, height  = 8)
 
-  
-  
+
+
+# Creating an upset plot visual for analytes that are correlated w/ plasma across multiple tissues
+
+#' format a datafame with metabolites as rows and external tissue sources
+#' as columns, values within the dataframe are 1 if there is a strong correlation
+#' with the plasma and 0 if not
+
+cor_mat <- strong_cors %>%
+  select(featB, tissue_B) %>% 
+  mutate(detected = 1) %>%
+  pivot_wider(names_from = "tissue_B", 
+              values_from = 'detected', values_fill = 0) %>% 
+  column_to_rownames(var = "featB") %>% 
+  # mutate(Plasma = 1) %>% 
+  as.data.frame()
+
+
+svg(
+  glue("data/Venn_Diagrams/{Sys.Date()}_Upset_Plasma-Metabolite_corrs.svg"),
+  width = 8,
+  height = 4.5
+)
+
+upset(
+  cor_mat,
+  nintersects = 30,
+  nsets = 10,
+  order.by = "freq",
+  decreasing = T,
+  mb.ratio = c(0.6, 0.4),
+  number.angles = 0,
+  text.scale = 1.1,
+  point.size = 2.8,
+  line.size = 1
+)
+
+dev.off()
+
+
+# Load necessary libraries
+library(tidyverse)
+library(tidygraph)
+library(ggraph)
+
+# Create nodes data
+nodes <- strong_cors %>%
+  select(featA, tissue_A) %>%
+  dplyr::rename(name = featA, group = tissue_A) %>%
+  distinct() %>%
+  bind_rows(
+    strong_cors %>%
+      select(tissue_B) %>%
+      dplyr::rename(name = tissue_B) %>%
+      mutate(group = name) %>%
+      distinct()
+  ) %>%
+  distinct() %>% 
+  # Tissue nodes size 6, Metabolite nodes size 2
+  mutate(type = ifelse(name %in% unique(edges$to), "tissue", "analyte")) %>% 
+  glimpse()
+
+# Create edges data
+edges <- strong_cors %>%
+  select(featA, tissue_B, value) %>%
+  dplyr::rename(from = featA, to = tissue_B, correlation = value)
+
+tissue_cols <- rep("lightgrey", length(unique(strong_cors$tissue_B)))
+names(tissue_cols) <- unique(strong_cors$tissue_B)
+
+graph_node_cols <- c(
+  analyte_class_colors,
+  tissue_cols
+)
+
+# Create graph object
+graph <- tbl_graph(nodes = nodes, edges = edges, directed = FALSE)
+
+network_plot <- ggraph(graph, layout = 'stress') +
+  geom_edge_link(aes(edge_color = correlation), width = 1.5, alpha = 0.5, show.legend = TRUE) +
+  geom_node_point(aes(size = type, shape = type, fill = type), color = "black") +
+  geom_node_label(aes(label = name), repel = TRUE, alpha = 0.8) +
+  theme_void() +
+  scale_edge_color_gradient(low = "blue", high = "red") +
+  scale_size_manual(values = c("tissue" = 8, "analyte" = 4)) +
+  scale_fill_manual(values = c("tissue" = "white", "analyte" = "black")) +
+  scale_shape_manual(values = c("tissue" = 21, "analyte" = 23)) +
+  labs(edge_color = "Spearman's Rho",
+       color = NULL) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+ggsave(
+  glue("data/Correlations/{Sys.Date()}_plasma_correlations_top_metabolite_network.svg"),
+  network_plot, 
+  width = 8, height  = 6
+  )
+
+
+# Legend: 
+#' Network visual of metabolites selected in A). A metabolite is connected to a 
+#' tissue node if it has a strong correlation with it's abundance in Plasma samples.
+#' TMAO is highly connected, with strong correlations with Plasma levels in six different
+#' specimen types.  
+
